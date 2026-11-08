@@ -6,7 +6,7 @@ import {
 } from "./upilib";
 
 /** UPI-style pay sheet: handle → payee card → numeric pad → sign → success modal */
-export function PayModal({ prefill, onClose }) {
+export function PayModal({ prefill, onClose, onLedgerWrite }) {
   const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
   const [handle, setHandle] = useState(prefill ? normalizeHandle(prefill.replace(/^h:/, "")) : "");
@@ -48,6 +48,7 @@ export function PayModal({ prefill, onClose }) {
       if (res.value.err) throw new Error("on-chain transfer failed");
       setSig(sig);
       setStage("done");
+      onLedgerWrite?.(); // balances + passbook re-read the ledger now that it changed
     } catch (e) {
       setErr(String(e.message || e).slice(0, 140));
       setStage("error");

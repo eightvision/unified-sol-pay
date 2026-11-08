@@ -4,7 +4,7 @@ import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { PROGRAM_ID } from "./upilib";
 
 /** Real passbook: signature history straight off the devnet ledger */
-export function Passbook() {
+export function Passbook({ refreshTick }) {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
   const [rows, setRows] = useState(undefined); // undefined = loading
@@ -27,7 +27,7 @@ export function Passbook() {
       if (alive) setRows(detailed.filter(Boolean));
     })();
     return () => { alive = false; };
-  }, [publicKey, connection]);
+  }, [publicKey, connection, refreshTick]);
 
   if (rows === null) return (
     <div className="card"><p className="muted" style={{ margin: 0 }}>connect a wallet to see your passbook.</p></div>

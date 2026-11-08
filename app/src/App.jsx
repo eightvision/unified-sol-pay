@@ -13,6 +13,8 @@ export function App() {
   const [tab, setTab] = useState("home");
   const [payOpen, setPayOpen] = useState(false);
   const [payPrefill, setPayPrefill] = useState(null);
+  const [tick, setTick] = useState(0); // bumps on every ledger write → views refetch
+  const ledgerWrite = () => setTick((t) => t + 1);
 
   return (
     <div className="phone">
@@ -23,9 +25,9 @@ export function App() {
         <WalletMultiButton />
       </div>
 
-      {tab === "home" && <Home onPay={() => setPayOpen(true)} />}
+      {tab === "home" && <Home onPay={() => setPayOpen(true)} refreshTick={tick} onLedgerWrite={ledgerWrite} />}
       {tab === "qr" && <QRTab onPay={(h) => { setPayPrefill("h:" + h); setPayOpen(true); }} />}
-      {tab === "passbook" && <Passbook />}
+      {tab === "passbook" && <Passbook refreshTick={tick} />}
 
       <div className="actionbar">
         <button className="tile primary" onClick={() => { setTab("home"); setPayPrefill(null); setPayOpen(true); }}>Pay</button>
@@ -33,7 +35,7 @@ export function App() {
         <button className="tile ghost" data-active={tab === "passbook"} onClick={() => setTab("passbook")}>Passbook</button>
       </div>
 
-      {payOpen && <PayModal prefill={payPrefill} onClose={() => setPayOpen(false)} />}
+      {payOpen && <PayModal prefill={payPrefill} onLedgerWrite={ledgerWrite} onClose={() => setPayOpen(false)} />}
     </div>
   );
 }

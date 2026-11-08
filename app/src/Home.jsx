@@ -6,7 +6,7 @@ import {
   registerHandleTx,
 } from "./upilib";
 
-export function Home({ onPay }) {
+export function Home({ onPay, refreshTick, onLedgerWrite }) {
   const { connection } = useConnection();
   const { publicKey, signTransaction } = useWallet();
   const [handle, setHandle] = useState("");
@@ -30,7 +30,7 @@ export function Home({ onPay }) {
       setBalance(await connection.getBalance(publicKey));
     })();
     return () => { alive = false; };
-  }, [publicKey, connection, toast?.kind]); // refresh after successful register
+  }, [publicKey, connection, refreshTick, toast?.kind]); // refresh after register + after any ledger write
 
   // live availability check with 400ms debounce
   useEffect(() => {
@@ -81,6 +81,7 @@ export function Home({ onPay }) {
       setMine(h);
       setChecked({ state: "yours", h });
       say("ok", `${h}@solpay created on Solana ✓`, 4200);
+      onLedgerWrite?.(); // passbook/balance elsewhere re-read the ledger
     } catch (e) {
       say("err", String(e.message || e).slice(0, 120), 4200);
     } finally {
