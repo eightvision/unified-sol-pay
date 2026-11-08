@@ -23,6 +23,27 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
     toastTimer.current = setTimeout(() => setToast(null), ms);
   };
 
+  const myKey = publicKey?.toBase58() ?? null;
+
+  // Remember my VPA across refreshes: localStorage cache, verified against the
+  // ledger on every load — the chain stays the single source of truth.
+  useEffect(() => {
+    if (!myKey) { setMine(null); return; }
+    const cached = localStorage.getItem(`solpay.handle:${myKey}`);
+    if (!cached) return;
+    (async () => {
+      try {
+        const r = await resolveHandle(connection, cached);
+        if (r?.wallet && r.wallet.toBase58() === myKey) {
+          setMine(cached); // verified live → keep
+          return;
+        }
+        // stale cache (different owner / gone) → drop it, don't fake ownership
+        localStorage.removeItem(`solpay.handle:${myKey}`);
+      } catch { /* transient RPC error — cache stays, will re-verify next load */ }
+    })();
+  }, [myKey, connection]);
+
   useEffect(() => {
     if (!publicKey) { setBalance(null); setMine(null); return; }
     let alive = true;
@@ -43,7 +64,13 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
         const pda = handlePda(h);
         const existing = await resolveHandle(connection, h);
         if (existing?.wallet) {
-          setChecked(existing.wallet.equals(publicKey) ? { state: "yours", h } : { state: "taken", h });
+          if (existing.wallet.equals(publicKey)) {
+            localStorage.setItem(`solpay.handle:${publicKey.toBase58()}`, h);
+            setMine((m) => m ?? h);
+            setChecked({ state: "yours", h });
+          } else {
+            setChecked({ state: "taken", h });
+          }
         } else {
           setChecked({ state: "free", h });
         }
@@ -68,6 +95,7 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
       const pre = await connection.getAccountInfo(pda);
       if (pre) { // already exists and is theirs
         setMine(h);
+        localStorage.setItem(`solpay.handle:${publicKey.toBase58()}`, h);
         say("ok", `You already own ${h}@solpay ✓`);
         return;
       }
@@ -79,6 +107,7 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
       const res = await connection.confirmTransaction(sig, "confirmed");
       if (res.value.err) throw new Error("Transaction failed on-chain");
       setMine(h);
+      localStorage.setItem(`solpay.handle:${publicKey.toBase58()}`, h);
       setChecked({ state: "yours", h });
       say("ok", `${h}@solpay created on Solana ✓`, 4200);
       onLedgerWrite?.(); // passbook/balance elsewhere re-read the ledger
