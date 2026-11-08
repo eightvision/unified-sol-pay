@@ -1,4 +1,4 @@
-# USERGUIDE — Unified Sol PayApp 🇮🇳⚡
+# USERGUIDE — Unified Sol PayApp
 
 Paying people by a simple name — the way UPI does it — but settled on Solana in under a second for a fraction of a cent.
 
@@ -18,8 +18,8 @@ Paying people by a simple name — the way UPI does it — but settled on Solana
 ### 1 · Create your handle — `you@solpay`
 1. Open the app → click **Connect** → pick your wallet.
 2. Your **Devnet balance** shows on top.
-3. In *Your UPI-style handle*, type any name: `pranav`, `sneha.razor`, `cafe_42`…
-   - the bar under the input shows **`pranav@solpay · available ✓`** live.
+3. In *Your UPI-style handle*, type any name: `user`, `sneha.razor`, `cafe_42`…
+   - the bar under the input shows **`user@solpay · available ✓`** live.
 4. **Create** → sign with Phantom → toast **`pranav@solpay created on Solana ✓`** + an explorer link.
 That handle→wallet mapping is now on the ledger — any other wallet/device gets the same answer, no logins anywhere.
 

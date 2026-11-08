@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "devrelay-gateway": {
+        "type": "local",
+        "command": [
+          "/Users/pranav/.devrelay/bin/dev_mlh_mcp_server",
+          "--stdio"
+        ]
+      }
+    }
+  }
+}

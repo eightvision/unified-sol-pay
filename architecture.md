@@ -29,13 +29,13 @@ No server peering: every judge-facing feature is either browser + wallet or a pu
 That's the essence of blockchain-native payments UX: *the ledger is authoritative state, not a log*.
 
 ## Sequence — Register
-1. User plugs their Phantom/Solflare wallet into the SPA; typed handle `pranav` gets rendered as `pranav@solpay`.
+1. User plugs their Phantom/Solflare wallet into the SPA; typed handle `user` gets rendered as `user@solpay`.
 2. SPA derives known PDA → PDA check (does not exist).
 3. Wallet signs; anchor `init` creates `HandleRecord { authority: user }`.
 4. Success screen shows the explorer link (verifiably real).
 
 ## Sequence — Pay to Handle
-1. Sender types `pranav@solpay` + amount.
+1. Sender types `user@solpay` + amount.
 2. SPA sends tx with accounts: sender, **recipient = record.authority (from client resolution)**, record PDA, system program.
 3. The program **re-checks** recipient == record.authority → false attempts self-fail at program level, so the fee-payer can't redirect money unless they hold the handle.
 4. Fee: transfer + record read ≈ sub-penny; finality: ~400ms, "Done" toast shows full signature + explorer link.
