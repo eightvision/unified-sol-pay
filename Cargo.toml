@@ -1,0 +1,10 @@
+[workspace]
+members = ["programs/unified-sol-pay"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+
+[profile.release.build-override]
+overflow-checks = true
+

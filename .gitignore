@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+target/
+.anchor/
+.git/
+.env
+*.json.keypair
+**/id.json
+dapp.payer.json
+programs/__keypair.json
+programs/unified-sol-pay-keypair.json
+validator-ledger/
+.DS_Store
