@@ -3,8 +3,9 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   normalizeHandle, isValidHandle, handlePda, resolveHandle,
-  registerHandleTx,
+  registerHandleTx, PROGRAM_ID, discIx,
 } from "./upilib";
+import bs58 from "bs58";
 
 export function Home({ onPay, refreshTick, onLedgerWrite }) {
   const { connection } = useConnection();
@@ -52,6 +53,38 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
     })();
     return () => { alive = false; };
   }, [publicKey, connection, refreshTick, toast?.kind]); // refresh after register + after any ledger write
+
+  // Session restore, ledger-first: if this wallet has no remembered VPA, scan its
+  // recent transactions for a register_handle call, verify ownership on-chain, and
+  // log the wallet in as that handle. One wallet ⇒ one VPA by default.
+  useEffect(() => {
+    if (!publicKey || !myKey || mine) return; // cache / in-session registration wins
+    let alive = true;
+    (async () => {
+      try {
+        const sigs = await connection.getSignaturesForAddress(publicKey, { limit: 25 }, "confirmed");
+        for (const s of sigs.filter((x) => !x.err)) {
+          const t = await connection.getTransaction(s.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+          if (!t || !alive) return;
+          for (const ix of t.transaction.message.instructions) {
+            if (String(ix.programId) !== PROGRAM_ID.toBase58()) continue;
+            const raw = bs58.decode(ix.data);
+            if (!raw.subarray(0, 8).equals(discIx("register_handle"))) continue;
+            const len = raw.readUInt32LE(8);
+            const h = raw.subarray(12, 12 + len).toString("utf8");
+            if (!h) continue;
+            const r = await resolveHandle(connection, h);
+            if (alive && r?.wallet && r.wallet.toBase58() === myKey) { // verified owner
+              localStorage.setItem(`solpay.handle:${myKey}`, h);
+              setMine(h);
+              return;
+            }
+          }
+        }
+      } catch { /* transient RPC issues — UI stays as-is */ }
+    })();
+    return () => { alive = false; };
+  }, [publicKey, myKey, mine, connection]);
 
   // live availability check with 400ms debounce
   useEffect(() => {
@@ -126,50 +159,65 @@ export function Home({ onPay, refreshTick, onLedgerWrite }) {
       </div>
 
       <div className="card">
-        <b>Your UPI-style handle</b>
-        <p className="muted" style={{ margin: "4px 0 10px" }}>
-          Register a memorable VPA-like address on-chain — money arrives at your wallet.
-        </p>
-        <div className="row" style={{ gap: 8 }}>
-          <input
-            className="handle-input"
-            placeholder="yourname"
-            value={handle}
-            disabled={!publicKey || !!mine}
-            onChange={(e) => setHandle(e.target.value)}
-            spellCheck={false}
-          />
-          {!mine && (
-            <button className="tile primary" style={{ padding: "12px 18px", borderRadius: 8 }}
-              disabled={busy || checked.state !== "free"}
-              onClick={registerNow}>
-              {busy ? "Signing…" : "Create"}
-            </button>
-          )}
-        </div>
-        {handle.trim() !== "" && (
-          <div className="handle-preview">
-            →&nbsp;<b>{normalizeHandle(handle) || "?"}</b>
-            <span className="tld">@solpay</span>
-            {checked.state === "invalid" && <span> · <span style={{ color: "var(--danger)" }}>only a-z 0-9 . _ - (max 32)</span></span>}
-            {checked.state === "taken" && <span> · <span style={{ color: "var(--danger)" }}>already claimed</span></span>}
-            {checked.state === "free" && <span> · <span className="ok">available ✓</span></span>}
-            {checked.state === "yours" && (
-              <span>
-                · <span className="ok">yours ✓</span>{" "}
-                <a className="explorer" target="_blank" rel="noreferrer"
-                  href={`https://explorer.solana.com/address/${handlePda(checked.h)?.toBase58()}?cluster=devnet`}>
-                  view on explorer
-                </a>
-              </span>
+        {mine ? (
+          <>
+            <div className="row" style={{ gap: 10 }}>
+              <div className="avatar">{mine[0].toUpperCase()}</div>
+              <div>
+                <b>{mine}@solpay</b>
+                <div className="muted">logged in — payments arrive at your wallet</div>
+              </div>
+            </div>
+            <a
+              className="explorer" target="_blank" rel="noreferrer"
+              href={`https://explorer.solana.com/address/${handlePda(mine)?.toBase58()}?cluster=devnet`}
+            >
+              view your VPA record on explorer ↗
+            </a>
+          </>
+        ) : (
+          <>
+            <b>Your UPI-style handle</b>
+            <p className="muted" style={{ margin: "4px 0 10px" }}>
+              Register a memorable VPA-like address on-chain — money arrives at your wallet.
+            </p>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="handle-input"
+                placeholder="yourname"
+                value={handle}
+                disabled={!publicKey}
+                onChange={(e) => setHandle(e.target.value)}
+                spellCheck={false}
+              />
+              {!mine && (
+                <button className="tile primary" style={{ padding: "12px 18px", borderRadius: 8 }}
+                  disabled={busy || checked.state !== "free"}
+                  onClick={registerNow}>
+                  {busy ? "Signing…" : "Create"}
+                </button>
+              )}
+            </div>
+            {handle.trim() !== "" && (
+              <div className="handle-preview">
+                →&nbsp;<b>{normalizeHandle(handle) || "?"}</b>
+                <span className="tld">@solpay</span>
+                {checked.state === "invalid" && <span> · <span style={{ color: "var(--danger)" }}>only a-z 0-9 . _ - (max 32)</span></span>}
+                {checked.state === "taken" && <span> · <span style={{ color: "var(--danger)" }}>already claimed</span></span>}
+                {checked.state === "free" && <span> · <span className="ok">available ✓</span></span>}
+                {checked.state === "yours" && (
+                  <span>
+                    · <span className="ok">yours ✓</span>{" "}
+                    <a className="explorer" target="_blank" rel="noreferrer"
+                      href={`https://explorer.solana.com/address/${handlePda(checked.h)?.toBase58()}?cluster=devnet`}>
+                      view on explorer
+                    </a>
+                  </span>
+                )}
+              </div>
             )}
-          </div>
-        )}
-        {!publicKey && <p className="muted" style={{ marginBottom: 0 }}>connect a Phantom / Solflare wallet to register</p>}
-        {mine && (
-          <p style={{ margin: "10px 0 0" }}>
-            <span className="handle-preview ok" style={{ display: "inline" }}>✓ {mine}@solpay is live</span>
-          </p>
+            {!publicKey && <p className="muted" style={{ marginBottom: 0 }}>connect a wallet to register</p>}
+          </>
         )}
       </div>
 
