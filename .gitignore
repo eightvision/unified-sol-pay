@@ -12,3 +12,6 @@ programs/__keypair.json
 programs/unified-sol-pay-keypair.json
 validator-ledger/
 .DS_Store
+app/.env.local
+.env.*
+!.env.example

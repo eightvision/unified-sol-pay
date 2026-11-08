@@ -11,7 +11,7 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 
 window.Buffer = window.Buffer || Buffer; // web3.js on Vite expects a global Buffer
 
-const endpoint = clusterApiUrl("devnet");
+const endpoint = import.meta.env.VITE_RPC_URL ?? clusterApiUrl("devnet");
 const wallets = [new PhantomWalletAdapter(), new SolflareWalletAdapter({ network: "devnet" })];
 
 createRoot(document.getElementById("root")).render(
