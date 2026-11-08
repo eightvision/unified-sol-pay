@@ -19,10 +19,12 @@ export function PayModal({ prefill, onClose, onLedgerWrite }) {
 
   const h = normalizeHandle(handle);
 
-  // live resolution (debounced 350ms)
+  // live resolution (debounced 350ms) — payee is cleared on every keystroke so
+  // Send can never sign with a recipient from an older handle (not-recipient 0x1773).
   useEffect(() => {
     clearTimeout(debounce.current);
-    if (!isValidHandle(h) || (payee && payee !== "notfound")) return;
+    setPayee(null); // no stale recipient can survive a handle edit
+    if (!isValidHandle(h)) return;
     debounce.current = setTimeout(async () => {
       try {
         const r = await resolveHandle(connection, h);
@@ -39,7 +41,14 @@ export function PayModal({ prefill, onClose, onLedgerWrite }) {
     if (!valid || stage === "signing") return;
     setStage("signing");
     try {
-      const tx = payToHandleTx(publicKey, payee, h, lamports);
+      // Resolve THE LEDGER NOW — never sign with a payee resolved earlier.
+      const r = await resolveHandle(connection, h);
+      const payeeNow = r?.wallet ?? null;
+      if (!payeeNow) throw new Error(`${h}@solpay is not registered on-chain`);
+      if (payeeNow.toBase58() !== payee?.toBase58()) {
+        throw new Error(`${h}@solpay moved — its owner changed since you typed. Resolved again; press Send once more.`);
+      }
+      const tx = payToHandleTx(publicKey, payeeNow, h, lamports);
       tx.feePayer = publicKey;
       tx.recentBlockhash = (await connection.getLatestBlockhash("finalized")).blockhash;
       const signed = await signTransaction(tx);

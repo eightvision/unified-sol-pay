@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { QRCodeSVG } from "qrcode.react";
 import { solpayUrl, resolveHandle, normalizeHandle, isValidHandle } from "./upilib";
@@ -84,6 +84,14 @@ export function QRTab({ onPay }) {
 
   const s = publicKey.toBase58();
   const url = solpayUrl(s, { label: "Unified Sol PayApp" });
+  // VPA-first QR: encodes the handle, so the recipient is looked up in the
+  // registry at scan time (fresh owner, no stale addresses). Falls back to the
+  // classic Solana Pay address QR when this wallet hasn't registered yet.
+  const myHandle = useMemo(
+    () => (publicKey ? localStorage.getItem(`solpay.handle:${publicKey.toBase58()}`) : null),
+    [publicKey]
+  );
+  const qrValue = myHandle ? `${myHandle}@solpay` : url;
 
   return (
     <div className="card" style={{ textAlign: "center" }}>
@@ -95,10 +103,12 @@ export function QRTab({ onPay }) {
       {mode === "show" ? (
         <>
           <div style={{ background: "#fff", borderRadius: 14, padding: 14, display: "inline-block" }}>
-            <QRCodeSVG value={url} size={220} level="M" />
+            <QRCodeSVG value={qrValue} size={220} level="M" />
           </div>
           <p className="muted" style={{ marginTop: 10, wordBreak: "break-all" }}>
-            {s.slice(0, 10)}…{s.slice(-8)} — your Solana Pay QR
+            {myHandle
+              ? `${myHandle}@solpay — scan & pay by handle (fresh registry lookup)`
+              : `${s.slice(0, 10)}…${s.slice(-8)} — your Solana Pay QR (register a handle for a VPA QR)`}
           </p>
         </>
       ) : (
