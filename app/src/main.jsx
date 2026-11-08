@@ -16,6 +16,31 @@ window.Buffer = window.Buffer || Buffer; // web3.js on Vite expects a global Buf
 const endpoint = import.meta.env.VITE_RPC_URL ?? clusterApiUrl("devnet");
 const BURNER = import.meta.env.VITE_BURNER === "1"; // dev-only: in-memory throwaway wallet
 
+/** Dev-only: wipe the stored burner keypair and reconnect with a fresh one. */
+function BurnerReset() {
+  const { disconnect, publicKey, wallet } = useWallet();
+  const busy = useRef(false);
+  if (!publicKey) return null;
+  if (wallet && !wallet.adapter.name.toLowerCase().includes("burner")) return null;
+  return (
+    <button
+      onClick={async () => {
+        if (busy.current) return;
+        busy.current = true;
+        try {
+          localStorage.removeItem("solpay.burner.keypair");
+          await disconnect(); // BurnerAutoConnect reconnects with a brand-new keypair
+        } finally {
+          busy.current = false;
+        }
+      }}
+      style={{ position: "fixed", bottom: 96, left: 8, zIndex: 9999, fontSize: 12, opacity: 0.85 }}
+    >
+      ♻️ Reset test wallet
+    </button>
+  );
+}
+
 /**
  * Dev-only helper: top up a burner/dev wallet from the local test-validator faucet
  * so register/pay can be tested with zero setup. Never runs in production builds.
@@ -93,6 +118,7 @@ createRoot(document.getElementById("root")).render(
         <WalletModalProvider>
           {BURNER && <BurnerAutoConnect />}
           {BURNER && <BurnerButton />}
+          {BURNER && <BurnerReset />}
           {BURNER && <FaucetTopUp />}
           <App />
         </WalletModalProvider>
